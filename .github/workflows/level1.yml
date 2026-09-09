@@ -1,4 +1,4 @@
-name: Level 1 checks
+name: Lumen test suite
 on: [push, pull_request]
 jobs:
   test:
