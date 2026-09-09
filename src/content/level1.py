@@ -12,6 +12,7 @@ import pygame
 
 from engine.collision import move_with_collision
 from engine.lighting import build_darkness_mask, is_point_lit, LightingSystem
+from systems.clues import get_level1_clues, ClueObject
 from systems.audio import audio
 
 SCREEN_WIDTH = 800
@@ -222,6 +223,8 @@ class Level1Room:
         self.floor_surf=self._render_static_floor()
         self.lantern_pickup=LanternPickup(680,1090)
         self.keys=self._build_keys()
+        self.clue_objects=get_level1_clues()
+        self.all_obstacles += [c.rect for c in self.clue_objects]
 
     def _build_walls(self) -> list[pygame.Rect]:
         """Intentionally designed maze for the 1600x1200 temple.
@@ -386,6 +389,12 @@ class Level1Room:
             lantern.possessed=lantern.active=True
             lantern.radius=lantern.base_radius
             return True
+        for clue in self.clue_objects:
+            if clue.rect.colliderect(player.rect.inflate(28,28)) and has_line_of_sight(player.center,clue.rect.center,self.walls):
+                clue.triggered=True
+                inventory.add_clue(clue.id,clue.title,clue.prompt_text,clue.clue_type)
+                if clue_modal:clue_modal.open(clue.title,clue.prompt_text,clue.clue_type)
+                return True
         return False
 
     def draw(self,surface,player,offset=(0,0),lantern=None):
@@ -398,6 +407,9 @@ class Level1Room:
         for key in self.keys:
             lit=lantern.possessed and lantern.active and is_point_lit(key.rect.center,player.center,lantern.radius)
             key.draw(surface,lit,offset)
+        for clue in self.clue_objects:
+            lit=lantern.possessed and lantern.active and is_point_lit(clue.rect.center,player.center,lantern.radius)
+            clue.draw(surface,lit,camera_offset=offset)
         player.draw(surface,camera_offset=offset)
         center=(int(player.center[0]-offset[0]),int(player.center[1]-offset[1]))
         radius=lantern.radius if lantern.possessed and lantern.active else 45

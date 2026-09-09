@@ -5,6 +5,7 @@ from content.level1 import Level1Room
 from engine.camera import Camera
 from engine.lantern import Lantern
 from engine.inventory import Inventory
+from systems.ui import ClueModal
 
 def main(max_frames=None):
     pygame.init()
@@ -21,21 +22,26 @@ def main(max_frames=None):
     camera.update(player.center,1)
     lantern=Lantern()
     inventory=Inventory()
+    clue_modal=ClueModal(800,600)
+    font=pygame.font.SysFont("georgia",16)
     while running:
         dt=min(clock.tick(60)/1000,.05)
         for event in pygame.event.get():
             if event.type==pygame.QUIT:running=False
+            elif event.type==pygame.KEYDOWN and clue_modal.is_open:
+                if event.key in (pygame.K_e,pygame.K_ESCAPE,pygame.K_SPACE):clue_modal.close()
             elif event.type==pygame.KEYDOWN:
                 if event.key==pygame.K_ESCAPE:running=False
                 elif event.key==pygame.K_F11:
                     fullscreen=not fullscreen
                     window=pygame.display.set_mode((0,0) if fullscreen else (800,600),pygame.FULLSCREEN if fullscreen else 0)
                 elif event.key==pygame.K_l and lantern.possessed:lantern.toggle()
-                elif event.key==pygame.K_e:room.interact(player,lantern,inventory)
+                elif event.key==pygame.K_e:room.interact(player,lantern,inventory,clue_modal)
         screen.fill((17,14,24))
-        room.update(player,dt,inventory)
+        if not clue_modal.is_open:room.update(player,dt,inventory)
         camera.update(player.center,dt)
         room.draw(screen,player,camera.offset,lantern)
+        if clue_modal.is_open:clue_modal.draw(screen,font,font)
         window.blit(pygame.transform.scale(screen,window.get_size()),(0,0))
         pygame.display.flip()
         frames+=1

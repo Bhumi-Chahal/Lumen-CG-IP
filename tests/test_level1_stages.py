@@ -59,3 +59,15 @@ def test_key_pickup_records_each_key_once():
     p=Player(key.rect.centerx-13,key.rect.centery-15)
     r.update(p,.01,inv);r.update(p,.01,inv)
     assert key.collected and inv.keys==[key.id]
+
+
+def test_clue_inspection_populates_journal():
+    import pygame
+    from content.level1 import Level1Room
+    from engine.player import Player
+    from engine.inventory import Inventory
+    from engine.lantern import Lantern
+    pygame.init();r=Level1Room();inv=Inventory();clue=r.clue_objects[0]
+    p=Player(clue.rect.centerx-13,clue.rect.bottom+1)
+    assert r.interact(p,Lantern(),inv)
+    assert inv.has_clue(clue.id)
