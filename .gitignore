@@ -18,3 +18,9 @@ venv/
 .vscode/
 .idea/
 *.swp
+
+# Local runs and development output
+.pytest_cache/
+.audit-deps/
+saves/
+*.log
