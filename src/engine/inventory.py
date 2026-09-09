@@ -1,4 +1,4 @@
-"""Tracks keys, journal clues, and Level 2 mirrors across the shared run."""
+"""Tracks collected progression items across the shared run."""
 
 
 class Inventory:
@@ -7,6 +7,7 @@ class Inventory:
     def __init__(self):
         self.keys: list[str] = []
         self.mirrors: list[str] = []
+        self.crystals: list[str] = []
         self.clues: list[dict] = []
         self.selected_mirror_id: str | None = None
         self.selected_key_id: str | None = None
@@ -77,6 +78,22 @@ class Inventory:
     def mirror_count(self) -> int:
         return len(self.mirrors)
 
+    def add_crystal(self, crystal_id: str) -> bool:
+        """Adds a recovered Level 3 resonance crystal once."""
+        crystal_id = str(crystal_id)
+        if crystal_id in self.crystals:
+            return False
+        self.crystals.append(crystal_id)
+        return True
+
+    def has_crystal(self, crystal_id: str) -> bool:
+        """Returns whether a named resonance crystal was recovered."""
+        return str(crystal_id) in self.crystals
+
+    @property
+    def crystal_count(self) -> int:
+        return len(self.crystals)
+
     def add_clue(self, clue_id: str, title: str = "", text: str = "", clue_type: str = "clue") -> bool:
         """Adds a discovered environmental clue / journal entry to inventory."""
         if any(c["id"] == clue_id for c in self.clues):
@@ -110,4 +127,5 @@ class Inventory:
     def clear(self):
         self.keys.clear()
         self.mirrors.clear()
+        self.crystals.clear()
         self.clues.clear()

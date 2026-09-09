@@ -89,11 +89,15 @@ def test_two_wrong_keys_return_to_menu(game):
     game._update(2.1)
     assert game.state==STATE_MENU and game.inventory.key_count==0
 
-def test_level2_is_the_only_later_level_implementation():
+def test_level3_foundation_uses_the_expected_file_layout():
     root=Path(__file__).resolve().parents[1]
-    forbidden=('level3','level4')
-    for file in (root/'src').rglob('*.py'):
-        assert not any(word in file.stem.lower() for word in forbidden)
+    assert sorted(file.name for file in (root/'src'/'content').glob('level3*.py')) == [
+        'level3.py', 'level3_helpers.py',
+    ]
+    assert (root/'src'/'engine'/'reflection.py').exists()
+    assert (root/'src'/'entities'/'mirror.py').exists()
+    assert (root/'src'/'entities'/'puzzle_crystal.py').exists()
+    assert (root/'tests'/'test_level3.py').exists()
     assert not (root/'saves').exists()
 
 def test_inventory_has_keys_mirrors_and_clues(game):
