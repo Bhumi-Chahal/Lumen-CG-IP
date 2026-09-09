@@ -57,3 +57,11 @@ Lumen-Light-Reveals-Reality/
 ├── requirements.txt
 ├── .gitignore
 └── README.md
+
+## Level 1 contribution
+
+This branch stages the import of an existing locally developed Level 1 prototype in tested feature commits. The overview above describes the wider project roadmap. This contribution implements Level 1 only.
+
+Install: `python -m pip install -r requirements-dev.txt`
+
+Tests: `python -m pytest tests -q`
