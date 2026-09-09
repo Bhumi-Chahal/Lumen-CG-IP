@@ -4,7 +4,7 @@ Level 1 baseline lantern:
 - Simple on/off toggle via [L].
 - Fixed visibility radius that illuminates the chamber.
 - Color mode tracking ("white", "red", "blue", "green").
-- No battery, no drain, no energy cost (battery/energy is introduced in Level 2 per design.md §6).
+- No battery, drain or energy cost in this standalone level.
 """
 
 from systems.audio import audio
