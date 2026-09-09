@@ -1,8 +1,16 @@
 # Lumen: Light Reveals Reality
 
-A Python/Pygame computer graphics project. This contribution is the **standalone Level 1: Awakening** prototype, imported from the existing local project in twelve tested feature commits.
+A Python/Pygame computer graphics project with connected Level 1, Level 2, and Level 3 gameplay.
 
-Explore an ancient temple, find a lantern, discover three keys and read environmental clues to identify the key that opens the exit. Completing this version offers replay or the main menu. Later levels are not included.
+## Progress reports
+
+### Level 1 – Progress
+
+Level 1 of LUMEN – Light Reveals Reality introduces the temple adventure. The player explores the ruins, collects a lantern, finds three keys and reads environmental clues to identify the key that opens the exit. The level focuses on movement, light-based exploration and learning how clues guide the player through the first puzzle.
+
+### Level 3 – Progress
+
+Level 3 of LUMEN – Light Reveals Reality continues from Level 2 with the same inventory and introduces four reflection chambers. The player uses the RGB lantern and carries mirrors between chambers to direct coloured beams into receivers. Source crystals remain gray until their matching light is active, and restoring each receiver rewards a resonance crystal. The level includes mirror rotation and retrieval, checkpoints, a mural clue and a final completion screen after all three crystals are collected.
 
 ## Run
 
