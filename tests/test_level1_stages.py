@@ -94,3 +94,14 @@ def test_completion_replays_only_level1():
     game.story_modal.close();game._draw()
     game.inventory_modal.open();game._draw()
     assert game.inventory_modal.CATEGORIES==['KEYS','CLUES']
+
+
+def test_original_temple_decor_and_audio_fallback():
+    import pygame
+    from unittest.mock import patch
+    from content.level1 import Level1Room
+    from systems.audio import AudioManager
+    pygame.init();r=Level1Room()
+    assert r.torches and r.wall_foliage and r.obstacles
+    with patch('pygame.mixer.get_init',return_value=None),patch('pygame.mixer.init',side_effect=pygame.error('No audio')):
+        a=AudioManager();assert not a.enabled;a.play('pickup')

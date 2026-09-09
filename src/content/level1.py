@@ -37,11 +37,205 @@ FLOOR_GROUT = (10, 8, 15)
 # ---------------------------------------------------------------------------
 #  Torch Sconce (wall-mounted fire with radiant shine & warm ground-cast glow)
 # ---------------------------------------------------------------------------
+class TorchSconce:
+    """Wall-mounted flickering torch providing atmospheric ambient fire glow.
+
+    Features radiant lens flare starburst shine, warm ground-cast floor glow,
+    and ascending glowing ember sparks (matching reference art).
+    """
+
+    def __init__(self, x: float, y: float):
+        self.x = x
+        self.y = y
+        self.phase = random.uniform(0, 2 * math.pi)
+        self.embers = [
+            {
+                "x": random.uniform(-3, 3),
+                "y": random.uniform(-14, -2),
+                "vy": random.uniform(-20, -10),
+                "vx": random.uniform(-4, 4),
+                "life": random.uniform(0.1, 0.9),
+                "max_life": random.uniform(0.7, 1.2),
+                "size": random.uniform(1.0, 2.2)
+            }
+            for _ in range(6)
+        ]
+
+    def update(self, dt: float):
+        self.phase = (self.phase + dt * 7.5) % (2 * math.pi)
+        for emb in self.embers:
+            emb["life"] -= dt
+            emb["y"] += emb["vy"] * dt
+            emb["x"] += emb["vx"] * dt
+            if emb["life"] <= 0:
+                emb["life"] = emb["max_life"]
+                emb["x"] = random.uniform(-3, 3)
+                emb["y"] = -2.0
+                emb["vx"] = random.uniform(-4, 4)
+
+    def draw_ground_glow(self, surface: pygame.Surface, is_lit: bool,
+                         camera_offset: tuple[int, int] = (0, 0)):
+        """Draws the warm golden ground light pool on the floor beneath the sconce (matching reference art)."""
+        if not is_lit:
+            return
+        sx = int(self.x - camera_offset[0])
+        sy = int(self.y - camera_offset[1])
+
+        flicker = 3.0 * math.sin(self.phase * 1.4)
+        pool_w = int(120 + flicker * 2)
+        pool_h = int(74 + flicker)
+        pool_surf = pygame.Surface((pool_w, pool_h), pygame.SRCALPHA)
+
+        # Concentric warm golden/orange ellipses on the stone pavers
+        pygame.draw.ellipse(pool_surf, (255, 130, 30, 22), (0, 0, pool_w, pool_h))
+        pygame.draw.ellipse(pool_surf, (255, 175, 50, 42), (pool_w // 2 - 38, pool_h // 2 - 24, 76, 48))
+        pygame.draw.ellipse(pool_surf, (255, 220, 85, 75), (pool_w // 2 - 18, pool_h // 2 - 12, 36, 24))
+
+        surface.blit(pool_surf, (sx - pool_w // 2, sy + 6 - pool_h // 2))
+
+    def draw(self, surface: pygame.Surface, is_lit: bool,
+             camera_offset: tuple[int, int] = (0, 0)):
+        sx = int(self.x - camera_offset[0])
+        sy = int(self.y - camera_offset[1])
+
+        # Wrought iron bracket mount
+        pygame.draw.rect(surface, (50, 42, 35), (sx - 3, sy - 2, 6, 15), border_radius=1)
+        pygame.draw.rect(surface, (75, 62, 45), (sx - 6, sy + 7, 12, 5), border_radius=2)
+        pygame.draw.circle(surface, (95, 80, 60), (sx, sy + 3), 2)
+
+        if is_lit:
+            flicker = math.sin(self.phase)
+            flicker2 = math.sin(self.phase * 1.3 + 0.6)
+
+            # 1. Warm radial aura
+            glow_r = int(30 + 6 * flicker)
+            glow_surf = pygame.Surface((glow_r * 2, glow_r * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 145, 35, 45), (glow_r, glow_r), glow_r)
+            pygame.draw.circle(glow_surf, (255, 190, 75, 75), (glow_r, glow_r), int(glow_r * 0.55))
+            pygame.draw.circle(glow_surf, (255, 235, 130, 115), (glow_r, glow_r), int(glow_r * 0.28))
+            surface.blit(glow_surf, (sx - glow_r, sy - glow_r - 6))
+
+            # 2. Multi-layered flame
+            flame_h = int(12 + 4 * flicker2)
+            pygame.draw.polygon(surface, (255, 115, 20), [
+                (sx - 4, sy - 2), (sx + 4, sy - 2),
+                (sx + 2, sy - flame_h), (sx - 2, sy - flame_h - 2)
+            ])
+            pygame.draw.polygon(surface, (255, 195, 45), [
+                (sx - 2, sy - 2), (sx + 2, sy - 2),
+                (sx + 1, sy - flame_h + 2), (sx - 1, sy - flame_h + 1)
+            ])
+            pygame.draw.polygon(surface, (255, 250, 200), [
+                (sx - 1, sy - 2), (sx + 1, sy - 2),
+                (sx, sy - flame_h + 4)
+            ])
+
+            # 3. Radiant Starburst / Lens Flare Shine (matching reference art)
+            flare_span = int(18 + 4 * flicker)
+            flare_surf = pygame.Surface((flare_span * 2, flare_span * 2), pygame.SRCALPHA)
+            fc = flare_span
+            # Horizontal beam
+            pygame.draw.line(flare_surf, (255, 240, 180, 160), (fc - flare_span, fc), (fc + flare_span, fc), 2)
+            pygame.draw.line(flare_surf, (255, 255, 230, 220), (fc - flare_span // 2, fc), (fc + flare_span // 2, fc), 1)
+            # Vertical beam
+            pygame.draw.line(flare_surf, (255, 240, 180, 160), (fc, fc - flare_span), (fc, fc + flare_span), 2)
+            pygame.draw.line(flare_surf, (255, 255, 230, 220), (fc, fc - flare_span // 2), (fc, fc + flare_span // 2), 1)
+            # Specular diamond center
+            dia_pts = [(fc, fc - 3), (fc + 3, fc), (fc, fc + 3), (fc - 3, fc)]
+            pygame.draw.polygon(flare_surf, (255, 255, 245, 240), dia_pts)
+            surface.blit(flare_surf, (sx - fc, sy - 6 - fc))
+
+            # 4. Rising glowing embers
+            for emb in self.embers:
+                if emb["life"] > 0:
+                    ex = sx + int(emb["x"])
+                    ey = sy - 6 + int(emb["y"])
+                    e_alpha = int(230 * (emb["life"] / emb["max_life"]))
+                    es = pygame.Surface((4, 4), pygame.SRCALPHA)
+                    pygame.draw.circle(es, (255, 180, 50, e_alpha), (2, 2), int(emb["size"]))
+                    surface.blit(es, (ex - 2, ey - 2))
 
 
 # ---------------------------------------------------------------------------
 #  Wall-Side Foliage & Overgrowth (leaves, moss, grass & crimson weeds)
 # ---------------------------------------------------------------------------
+class WallFoliageCluster:
+    """Decorative vegetation cluster along walls, pillars, and corners.
+
+    Includes ivy vines, moss cushions, green grass tufts, and reference-inspired
+    crimson/autumn weeds clinging to ancient ruined masonry.
+    """
+
+    def __init__(self, x: float, y: float, foliage_type: str = "ivy", flip: bool = False, scale: float = 1.0):
+        self.x = x
+        self.y = y
+        self.foliage_type = foliage_type  # 'ivy', 'crimson_weeds', 'grass_tuft', 'moss'
+        self.flip = flip
+        self.scale = scale
+
+    def draw(self, surface: pygame.Surface, is_lit: bool,
+             camera_offset: tuple[int, int] = (0, 0)):
+        sx = int(self.x - camera_offset[0])
+        sy = int(self.y - camera_offset[1])
+
+        if not is_lit:
+            # Barely visible dark mossy silhouette in darkness
+            pygame.draw.circle(surface, (8, 12, 10), (sx, sy), 4)
+            return
+
+        flip_mult = -1 if self.flip else 1
+
+        if self.foliage_type == "ivy":
+            # Clinging ivy tendril with leafy lobes hanging down or across the wall
+            pts = [(sx, sy), (sx + 4 * flip_mult, sy + 6), (sx + 2 * flip_mult, sy + 13), (sx + 7 * flip_mult, sy + 18)]
+            pygame.draw.lines(surface, (24, 46, 26), False, pts, 2)
+            leaves = [
+                (sx - 3 * flip_mult, sy + 4, 4, (32, 75, 38)),
+                (sx + 5 * flip_mult, sy + 7, 5, (45, 105, 48)),
+                (sx + 1 * flip_mult, sy + 12, 4, (28, 68, 32)),
+                (sx + 8 * flip_mult, sy + 16, 5, (55, 125, 58)),
+                (sx + 5 * flip_mult, sy + 19, 3, (70, 145, 72)),
+            ]
+            for lx, ly, lr, col in leaves:
+                pygame.draw.circle(surface, col, (lx, ly), lr)
+                pygame.draw.circle(surface, (18, 42, 22), (lx, ly), lr, width=1)
+
+        elif self.foliage_type == "crimson_weeds":
+            # Wild crimson and autumn overgrown weed tufts (matching reference art)
+            stalks = [
+                (sx - 6 * flip_mult, sy - 8, (125, 40, 42)),
+                (sx - 3 * flip_mult, sy - 12, (155, 52, 52)),
+                (sx + 1 * flip_mult, sy - 14, (180, 68, 65)),
+                (sx + 5 * flip_mult, sy - 10, (140, 46, 48)),
+                (sx + 8 * flip_mult, sy - 6, (110, 35, 38)),
+            ]
+            for ex, ey, col in stalks:
+                pygame.draw.line(surface, col, (sx, sy), (ex, ey), 2)
+                pygame.draw.circle(surface, (205, 88, 80), (ex, ey), 2)
+            pygame.draw.ellipse(surface, (85, 26, 30), (sx - 5, sy - 3, 10, 5))
+
+        elif self.foliage_type == "grass_tuft":
+            # Wild temple grass blades hugging the stone base
+            blades = [
+                (sx - 5 * flip_mult, sy - 9, (42, 88, 45)),
+                (sx - 2 * flip_mult, sy - 13, (58, 118, 55)),
+                (sx + 2 * flip_mult, sy - 14, (72, 138, 62)),
+                (sx + 6 * flip_mult, sy - 8, (48, 98, 48)),
+            ]
+            for bx, by, col in blades:
+                pygame.draw.line(surface, col, (sx, sy), (bx, by), 2)
+            pygame.draw.circle(surface, (30, 62, 32), (sx, sy), 3)
+
+        elif self.foliage_type == "moss":
+            # Spreading organic moss cushion along wall seam
+            moss_blobs = [
+                (sx - 8, sy - 2, 16, 8, (30, 65, 35)),
+                (sx - 4, sy - 4, 12, 7, (45, 95, 48)),
+                (sx + 2, sy - 1, 10, 6, (60, 120, 62)),
+                (sx - 1, sy + 2, 8, 4, (25, 52, 28)),
+            ]
+            for mx, my, mw, mh, col in moss_blobs:
+                pygame.draw.ellipse(surface, col, (mx, my, mw, mh))
 
 
 # ---------------------------------------------------------------------------
@@ -586,8 +780,23 @@ class Level1Room:
                 container_type="masonry_debris", container_name="Fallen Masonry"),
         ]
 
-    def _build_torches(self):
-        return []
+    def _build_torches(self) -> list[TorchSconce]:
+        return [
+            # Outer walls
+            TorchSconce(50, 300), TorchSconce(50, 600),
+            TorchSconce(50, 900),
+            TorchSconce(1550, 300), TorchSconce(1550, 600),
+            TorchSconce(1550, 900),
+            # North wall
+            TorchSconce(200, 52), TorchSconce(500, 52),
+            TorchSconce(1100, 52), TorchSconce(1400, 52),
+            # Internal walls — main corridor
+            TorchSconce(580, 780), TorchSconce(1020, 780),
+            # West branch
+            TorchSconce(264, 520), TorchSconce(520, 680),
+            # East branch
+            TorchSconce(1336, 520), TorchSconce(1080, 680),
+        ]
 
     def _build_obstacles(self) -> list[Obstacle]:
         return [
@@ -633,8 +842,91 @@ class Level1Room:
             Obstacle(1020, 320, "masonry_debris"),
         ]
 
-    def _build_wall_foliage(self):
-        return []
+    def _build_wall_foliage(self) -> list[WallFoliageCluster]:
+        """Constructs abandoned temple overgrowth along walls, pillars, and corners (matching reference art)."""
+        return [
+            # Spawn chamber & south corridor (leaves, moss, grass, crimson weeds)
+            WallFoliageCluster(560, 1140, "moss"),
+            WallFoliageCluster(585, 1150, "crimson_weeds"),
+            WallFoliageCluster(620, 1155, "grass_tuft"),
+            WallFoliageCluster(740, 1160, "ivy"),
+            WallFoliageCluster(860, 1160, "crimson_weeds", flip=True),
+            WallFoliageCluster(980, 1150, "grass_tuft"),
+            WallFoliageCluster(1012, 1140, "moss", flip=True),
+            WallFoliageCluster(588, 1050, "ivy"),
+            WallFoliageCluster(1012, 1050, "crimson_weeds", flip=True),
+            WallFoliageCluster(588, 950, "grass_tuft"),
+            WallFoliageCluster(1012, 950, "ivy", flip=True),
+            WallFoliageCluster(588, 850, "crimson_weeds"),
+            WallFoliageCluster(1012, 850, "moss", flip=True),
+            WallFoliageCluster(588, 770, "ivy"),
+            WallFoliageCluster(1012, 770, "grass_tuft", flip=True),
+            # Pillars (overgrowth hugging column plinths)
+            WallFoliageCluster(680, 868, "moss"),
+            WallFoliageCluster(708, 868, "crimson_weeds", flip=True),
+            WallFoliageCluster(892, 868, "ivy"),
+            WallFoliageCluster(920, 868, "grass_tuft", flip=True),
+            WallFoliageCluster(680, 988, "crimson_weeds"),
+            WallFoliageCluster(892, 988, "moss", flip=True),
+            WallFoliageCluster(650, 488, "ivy"),
+            WallFoliageCluster(678, 488, "grass_tuft"),
+            WallFoliageCluster(922, 488, "crimson_weeds", flip=True),
+            WallFoliageCluster(650, 608, "moss"),
+            WallFoliageCluster(922, 608, "ivy", flip=True),
+            WallFoliageCluster(120, 548, "grass_tuft"),
+            WallFoliageCluster(1450, 548, "crimson_weeds", flip=True),
+            WallFoliageCluster(250, 278, "ivy"),
+            # Three-way fork & dividing wall thresholds
+            WallFoliageCluster(250, 680, "moss"),
+            WallFoliageCluster(350, 680, "crimson_weeds"),
+            WallFoliageCluster(480, 680, "ivy"),
+            WallFoliageCluster(1020, 680, "grass_tuft"),
+            WallFoliageCluster(1150, 680, "crimson_weeds", flip=True),
+            WallFoliageCluster(1320, 680, "moss", flip=True),
+            # West branch & Bronze Key corridor
+            WallFoliageCluster(35, 410, "ivy"),
+            WallFoliageCluster(35, 520, "crimson_weeds"),
+            WallFoliageCluster(35, 620, "grass_tuft"),
+            WallFoliageCluster(120, 408, "moss"),
+            WallFoliageCluster(200, 408, "crimson_weeds"),
+            WallFoliageCluster(248, 500, "ivy", flip=True),
+            WallFoliageCluster(248, 600, "grass_tuft", flip=True),
+            # East branch & Silver Key chamber
+            WallFoliageCluster(1565, 410, "ivy", flip=True),
+            WallFoliageCluster(1565, 520, "crimson_weeds", flip=True),
+            WallFoliageCluster(1565, 620, "moss", flip=True),
+            WallFoliageCluster(1350, 408, "grass_tuft"),
+            WallFoliageCluster(1450, 408, "crimson_weeds"),
+            WallFoliageCluster(1320, 500, "ivy"),
+            WallFoliageCluster(1320, 600, "moss"),
+            # North passage
+            WallFoliageCluster(508, 420, "crimson_weeds"),
+            WallFoliageCluster(508, 540, "moss"),
+            WallFoliageCluster(508, 640, "ivy"),
+            WallFoliageCluster(1064, 420, "grass_tuft", flip=True),
+            WallFoliageCluster(1064, 540, "crimson_weeds", flip=True),
+            WallFoliageCluster(1064, 640, "moss", flip=True),
+            WallFoliageCluster(508, 220, "ivy"),
+            WallFoliageCluster(1064, 220, "crimson_weeds", flip=True),
+            # Gold Key alcove
+            WallFoliageCluster(35, 200, "moss"),
+            WallFoliageCluster(35, 300, "crimson_weeds"),
+            WallFoliageCluster(120, 186, "ivy"),
+            WallFoliageCluster(250, 186, "grass_tuft"),
+            WallFoliageCluster(380, 186, "crimson_weeds", flip=True),
+            WallFoliageCluster(120, 380, "moss"),
+            WallFoliageCluster(250, 380, "ivy"),
+            WallFoliageCluster(380, 380, "crimson_weeds"),
+            # Northern Sanctum Threshold & Exit approach
+            WallFoliageCluster(510, 186, "ivy"),
+            WallFoliageCluster(620, 186, "crimson_weeds"),
+            WallFoliageCluster(730, 60, "moss"),
+            WallFoliageCluster(740, 186, "grass_tuft"),
+            WallFoliageCluster(860, 60, "crimson_weeds", flip=True),
+            WallFoliageCluster(870, 186, "ivy", flip=True),
+            WallFoliageCluster(980, 186, "moss", flip=True),
+            WallFoliageCluster(1060, 186, "crimson_weeds", flip=True),
+        ]
 
 
 
@@ -1027,17 +1319,97 @@ class Level1Room:
 
 
 
-    def _draw_walls(self,surface,camera_offset):
-        for obstacle in self.walls:
-            rect=obstacle.move(-camera_offset[0],-camera_offset[1])
-            pygame.draw.rect(surface,WALL_STONE,rect)
-            pygame.draw.rect(surface,WALL_HIGHLIGHT,rect,2)
+    def _draw_walls(self, surface: pygame.Surface, camera_offset: tuple[int, int]):
+        """Draws thick cracked stone walls with arched alcove details."""
+        for wall in self.walls:
+            wr = wall.move(-camera_offset[0], -camera_offset[1])
+            # Base wall fill
+            pygame.draw.rect(surface, WALL_COLOR, wr)
 
-    def _draw_pillars(self,surface,camera_offset):
-        for obstacle in self.pillars:
-            rect=obstacle.move(-camera_offset[0],-camera_offset[1])
-            pygame.draw.rect(surface,WALL_STONE,rect)
-            pygame.draw.rect(surface,WALL_HIGHLIGHT,rect,2)
+            # Stone brick texture pattern
+            brick_h = 12
+            brick_w = 28
+            for by in range(wr.y, wr.bottom, brick_h):
+                offset = brick_w // 2 if ((by - wr.y) // brick_h) % 2 else 0
+                for bx in range(wr.x + offset, wr.right, brick_w):
+                    br = pygame.Rect(bx, by, min(brick_w - 1, wr.right - bx),
+                                     min(brick_h - 1, wr.bottom - by))
+                    pygame.draw.rect(surface, WALL_STONE, br)
+                    pygame.draw.rect(surface, WALL_DARK, br, width=1)
+
+            # Top highlight edge (north outer wall only)
+            if wall.y == 0 and wall.height <= 40:
+                pygame.draw.rect(surface, WALL_HIGHLIGHT,
+                                 (wr.x, wr.bottom - 4, wr.width, 4))
+
+            # Wall border
+            pygame.draw.rect(surface, WALL_DARK, wr, width=2)
+
+        # Arched alcoves on the outer walls (expanded positions)
+        alcove_positions = [
+            (50, 400), (50, 800),              # West outer wall
+            (1550, 400), (1550, 800),           # East outer wall
+        ]
+        for ax, ay in alcove_positions:
+            asx = int(ax - camera_offset[0])
+            asy = int(ay - camera_offset[1])
+            # Dark arched recess
+            pygame.draw.rect(surface, (10, 8, 16), (asx - 10, asy, 20, 30))
+            pygame.draw.arc(surface, WALL_STONE, (asx - 12, asy - 12, 24, 24), 0, math.pi, 2)
+
+        # Wall cracks (expanded world positions)
+        wall_cracks = [
+            ((60, 200), (75, 210), (85, 205)),
+            ((60, 600), (75, 610), (68, 625)),
+            ((1555, 300), (1565, 315), (1558, 330)),
+            ((1555, 700), (1565, 715), (1558, 730)),
+            ((200, 55), (220, 48), (235, 55)),
+            ((800, 55), (820, 48), (835, 55)),
+        ]
+        for crack in wall_cracks:
+            pts = [(int(p[0] - camera_offset[0]), int(p[1] - camera_offset[1])) for p in crack]
+            pygame.draw.lines(surface, (12, 10, 18), False, pts, 1)
+
+    def _draw_pillars(self, surface: pygame.Surface, camera_offset: tuple[int, int]):
+        """Draws thick stone columns with carved arches and decorative bands."""
+        for pillar in self.pillars:
+            pr = pillar.move(-camera_offset[0], -camera_offset[1])
+
+            # Pillar shadow
+            pygame.draw.rect(surface, (6, 4, 10),
+                             (pr.x - 5, pr.y + pr.height - 3, pr.width + 10, 8))
+
+            # Column base
+            base_rect = pygame.Rect(pr.x - 4, pr.bottom - 8, pr.width + 8, 8)
+            pygame.draw.rect(surface, (55, 48, 65), base_rect, border_radius=2)
+            pygame.draw.rect(surface, WALL_DARK, base_rect, width=1, border_radius=2)
+
+            # Column body
+            pygame.draw.rect(surface, (48, 42, 58), pr, border_radius=4)
+            # Lighter inner face
+            pygame.draw.rect(surface, (62, 55, 72),
+                             (pr.x + 4, pr.y + 8, pr.width - 8, pr.height - 16),
+                             border_radius=2)
+
+            # Carved gold decorative bands
+            band_y1 = pr.y + 10
+            band_y2 = pr.y + pr.height - 14
+            pygame.draw.rect(surface, (150, 115, 50),
+                             (pr.x + 2, band_y1, pr.width - 4, 4))
+            pygame.draw.rect(surface, (150, 115, 50),
+                             (pr.x + 2, band_y2, pr.width - 4, 4))
+
+            # Column capital (top decorative cap)
+            cap_rect = pygame.Rect(pr.x - 4, pr.y - 4, pr.width + 8, 10)
+            pygame.draw.rect(surface, (55, 48, 65), cap_rect, border_radius=3)
+            pygame.draw.rect(surface, WALL_DARK, cap_rect, width=1, border_radius=3)
+
+            # Small carved rune/symbol
+            pygame.draw.circle(surface, (120, 95, 50),
+                               (pr.centerx, pr.y + pr.height // 2), 4, width=1)
+
+            # Column outline
+            pygame.draw.rect(surface, WALL_DARK, pr, width=2, border_radius=4)
 
     def _draw_exit_door(self, surface: pygame.Surface, camera_offset: tuple[int, int]):
         dr = self.exit_rect.move(-camera_offset[0], -camera_offset[1])
