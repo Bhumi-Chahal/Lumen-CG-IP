@@ -1,7 +1,7 @@
 """Lumen — Level 1: Light Reveals Reality.
 
 FULLSCREEN 2D top-down puzzle adventure.
-Bootstraps Pygame, manages centralized game state transitions (MENU -> PLAYING -> LEVEL1_COMPLETE),
+Bootstraps Pygame and manages the connected Level 1, Level 2, and Level 3 run.
 and wires the player, lantern, inventory, camera, and UI into the ancient temple chamber.
 
 Controls:
@@ -28,6 +28,7 @@ from systems.inventory_ui import InventoryModal
 from systems.audio import audio
 from content.level1 import Level1Room, SCREEN_WIDTH, SCREEN_HEIGHT, ROOM_WIDTH, ROOM_HEIGHT
 from content.level2 import Level2Room, L2_WORLD_WIDTH, L2_WORLD_HEIGHT, L2_SPAWN_X, L2_SPAWN_Y
+from content.level3 import Level3Room, L3_WORLD_WIDTH, L3_WORLD_HEIGHT, L3_SPAWN_X, L3_SPAWN_Y
 
 FPS = 60
 
@@ -36,6 +37,8 @@ STATE_MENU = "menu"
 STATE_PLAYING = "playing"
 STATE_LEVEL1_COMPLETE = "level1_complete"
 STATE_LEVEL2 = "level2"
+STATE_LEVEL3 = "level3"
+STATE_LEVEL3_COMPLETE = "level3_complete"
 
 
 class GameManager:
@@ -88,6 +91,7 @@ class GameManager:
         self.inventory: Inventory = Inventory()
         self.room: Level1Room = Level1Room()
         self.level2_room: Level2Room | None = None
+        self.level3_room: Level3Room | None = None
 
         self.start_time = 0.0
         self.elapsed_time = 0.0
@@ -183,6 +187,26 @@ class GameManager:
         self.state = STATE_LEVEL2
         pygame.display.set_caption("Lumen: The Deepening Dark — Level 2")
 
+    def init_level3(self):
+        """Enter the reflection chambers with the Level 2 inventory unchanged."""
+        self.player = Player(x=L3_SPAWN_X, y=L3_SPAWN_Y)
+        self.lantern.possessed = True
+        self.lantern.active = False
+        self.lantern.set_color("white")
+        self.level3_room = Level3Room(self.inventory)
+        self.camera = Camera(self.render_w, self.render_h, L3_WORLD_WIDTH, L3_WORLD_HEIGHT)
+        self.camera.update(self.player.center, 0.0)
+        self.state = STATE_LEVEL3
+        pygame.display.set_caption("Lumen: Path of Light — Level 3")
+
+    def init_level3_complete(self):
+        """Present the end card after the third resonance crystal is recovered."""
+        if self.level3_room:
+            self.level3_room.cleanup()
+        self.level3_room = None
+        self.state = STATE_LEVEL3_COMPLETE
+        pygame.display.set_caption("Lumen: Path Restored")
+
 
 
 
@@ -201,7 +225,7 @@ class GameManager:
                     pos=self._screen_to_game_coords(event.pos) if event.type==pygame.MOUSEBUTTONDOWN else None
                     self.inventory_modal.handle_input(event,game_pos=pos,inventory=self.inventory)
                     continue
-                if event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and self.state in (STATE_PLAYING, STATE_LEVEL2):
+                if event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and self.state in (STATE_PLAYING, STATE_LEVEL2, STATE_LEVEL3):
                     if not (self.story_modal.is_open or self.clue_modal.is_open or self.door_modal.is_open) and self.inventory_btn_rect.collidepoint(self._screen_to_game_coords(event.pos)):
                         self.inventory_modal.toggle()
                         continue
@@ -362,6 +386,20 @@ class GameManager:
             elif key in (pygame.K_c, pygame.K_h):
                 self.show_controls = not self.show_controls
 
+        elif self.state == STATE_LEVEL3:
+            if not self.level3_room:
+                return
+            action = self.level3_room.handle_keydown(key, self.player, self.lantern)
+            if action == "inventory":
+                self.inventory_modal.toggle()
+            elif action == "menu":
+                self.level3_room.cleanup()
+                self.state = STATE_MENU
+
+        elif self.state == STATE_LEVEL3_COMPLETE:
+            if key in (pygame.K_m, pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE):
+                self.state = STATE_MENU
+
     def _update(self, dt: float):
         self.menu_pulse = (self.menu_pulse + dt * 2.5) % (2 * math.pi)
 
@@ -420,13 +458,24 @@ class GameManager:
             self.camera.update(self.player.center, dt)
             if self.level2_room.is_dead and self.level2_room.death_timer <= 0:
                 self.init_level2()
+            elif self.level2_room.trigger_level3_transition:
+                self.init_level3()
+
+        elif self.state == STATE_LEVEL3 and self.level3_room:
+            self.level3_room.update(self.player, self.lantern, dt)
+            if not (self.level3_room.paused or self.level3_room.help_open or self.level3_room.active_clue):
+                self.camera.update(self.level3_room.camera_target(self.player), dt)
+            if self.level3_room.trigger_level4_transition:
+                self.init_level3_complete()
 
     def _draw(self):
         if self.state == STATE_MENU:self._draw_menu()
         elif self.state == STATE_PLAYING:self._draw_playing()
         elif self.state == STATE_LEVEL1_COMPLETE:self._draw_complete()
         elif self.state == STATE_LEVEL2:self._draw_level2()
-        if self.state in (STATE_PLAYING, STATE_LEVEL2):self._draw_side_inventory_button()
+        elif self.state == STATE_LEVEL3:self._draw_level3()
+        elif self.state == STATE_LEVEL3_COMPLETE:self._draw_level3_complete()
+        if self.state in (STATE_PLAYING, STATE_LEVEL2, STATE_LEVEL3):self._draw_side_inventory_button()
         if self.story_modal.is_open:self.story_modal.draw(self.game_surface,self.font_modal_title,self.font_body)
         if self.inventory_modal.is_open:self.inventory_modal.draw(self.game_surface,self.inventory)
         if self.show_controls:self._draw_controls_overlay()
@@ -527,6 +576,24 @@ class GameManager:
     def _draw_level2(self):
         self.level2_room.draw(self.game_surface, self.player, self.lantern, camera_offset=self.camera.offset)
         self.level2_room.draw_hud(self.game_surface, self.font_small, self.lantern, inventory=self.inventory)
+
+    def _draw_level3(self):
+        self.level3_room.draw(self.game_surface, self.player, self.lantern, camera_offset=self.camera.offset)
+        self.level3_room.draw_hud(self.game_surface, self.font_small, self.lantern, inventory=self.inventory)
+
+    def _draw_level3_complete(self):
+        self.game_surface.fill((10, 11, 18))
+        card = pygame.Rect(100, 108, 600, 384)
+        pygame.draw.rect(self.game_surface, (23, 25, 37), card, border_radius=12)
+        pygame.draw.rect(self.game_surface, (202, 169, 94), card, width=2, border_radius=12)
+        title = self.font_title.render("PATH OF LIGHT RESTORED", True, (245, 223, 160))
+        body = self.font_body.render("Three resonance crystals now answer your lantern.", True, (220, 216, 205))
+        count = self.font_body.render(f"Resonance crystals recovered: {self.inventory.crystal_count} / 3", True, (170, 220, 202))
+        prompt = self.font_small.render("Press [SPACE], [ENTER], or [M] for the main menu", True, (181, 170, 150))
+        self.game_surface.blit(title, (400 - title.get_width() // 2, 188))
+        self.game_surface.blit(body, (400 - body.get_width() // 2, 260))
+        self.game_surface.blit(count, (400 - count.get_width() // 2, 302))
+        self.game_surface.blit(prompt, (400 - prompt.get_width() // 2, 422))
 
     # --- Level Complete Drawing ----------------------------------------------
 
