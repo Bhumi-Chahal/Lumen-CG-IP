@@ -48,3 +48,14 @@ def test_lantern_pickup_and_toggle():
     assert r.interact(p,l)
     assert l.possessed and l.active
     l.toggle();assert not l.active and l.radius==0
+
+
+def test_key_pickup_records_each_key_once():
+    import pygame
+    from content.level1 import Level1Room
+    from engine.player import Player
+    from engine.inventory import Inventory
+    pygame.init();r=Level1Room();inv=Inventory();key=r.keys[0]
+    p=Player(key.rect.centerx-13,key.rect.centery-15)
+    r.update(p,.01,inv);r.update(p,.01,inv)
+    assert key.collected and inv.keys==[key.id]

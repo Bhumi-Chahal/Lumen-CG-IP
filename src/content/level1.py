@@ -100,6 +100,118 @@ class LanternPickup:
             surface.blit(box_surf, (box.x, box.y))
             surface.blit(prompt_txt, (box.x + 4, box.y + 2))
 
+class Key:
+    """Collectible ornate medieval key embedded within authentic environmental features.
+
+    Features hexagonal head plate with spiral/sun emblem, decorative handle, and toothed shaft.
+    Subtly concealed within rocks, roots, or masonry with only an exposed metallic edge visible.
+    """
+
+    def __init__(self, key_id: str, x: float, y: float, correct: bool,
+                 label: str, color: tuple[int, int, int], emblem: str,
+                 dark_color: tuple[int, int, int], highlight: tuple[int, int, int],
+                 container_type: str = "roots", container_name: str = "Gnarled Roots"):
+        self.id = key_id
+        self.x = x
+        self.y = y
+        self.correct = correct
+        self.label = label
+        self.color = color
+        self.dark_color = dark_color
+        self.highlight = highlight
+        self.emblem = emblem
+        self.container_type = container_type
+        self.container_name = container_name
+        self.collected = False
+        self.radius = 20
+        self.bob_phase = random.uniform(0, 2 * math.pi)
+
+    @property
+    def rect(self) -> pygame.Rect:
+        return pygame.Rect(int(self.x - self.radius), int(self.y - self.radius),
+                           self.radius * 2, self.radius * 2)
+
+    def update(self, dt: float):
+        self.bob_phase = (self.bob_phase + dt * 2.5) % (2 * math.pi)
+
+    def draw(self, surface: pygame.Surface, is_lit: bool,
+             camera_offset: tuple[int, int] = (0, 0)):
+        px = int(self.x - camera_offset[0])
+        py = int(self.y - camera_offset[1])
+
+        if not is_lit:
+            # Barely visible dark environmental silhouette in total darkness
+            pygame.draw.circle(surface, (12, 10, 18), (px, py), 12, width=1)
+            return
+
+        glint_phase = 0.5 + 0.5 * math.sin(self.bob_phase * 2.0)
+
+        # ── 1. RENDER ENVIRONMENTAL CONTAINER & EMBEDDED OBJECT ──
+        if self.container_type == "roots":
+            # Bronze Key: embedded in gnarled roots and broken flagstones
+            pygame.draw.ellipse(surface, (26, 22, 18), (px - 16, py - 6, 32, 18))
+            pygame.draw.circle(surface, (32, 50, 30), (px - 10, py + 4), 5)  # Moss patch
+            # Twisted root cords
+            pygame.draw.arc(surface, (58, 40, 26), (px - 14, py - 12, 28, 20), 0.2, 2.8, 4)
+            pygame.draw.arc(surface, (42, 28, 18), (px - 12, py - 8, 24, 16), 0.5, 3.1, 3)
+            pygame.draw.line(surface, (50, 35, 22), (px - 12, py + 2), (px + 14, py + 8), 3)
+
+            if not self.collected:
+                # Key is partially hidden in hollow: exposed bronze ring & tooth peek out
+                hex_pts = [
+                    (px - 1, py - 8), (px + 5, py - 8), (px + 8, py - 3),
+                    (px + 5, py + 2), (px - 1, py + 2), (px - 4, py - 3)
+                ]
+                pygame.draw.polygon(surface, self.dark_color, hex_pts)
+                pygame.draw.polygon(surface, self.color, hex_pts, width=1)
+                pygame.draw.circle(surface, self.color, (px + 2, py - 3), 3)
+                # Exposed partial shaft
+                pygame.draw.line(surface, self.color, (px + 2, py + 1), (px + 2, py + 7), 2)
+                pygame.draw.rect(surface, self.color, (px + 3, py + 4, 3, 2))  # small bit tooth
+                # Subtle metallic glint on exposed rim
+                if glint_phase > 0.85:
+                    pygame.draw.circle(surface, (255, 230, 160), (px - 1, py - 7), 1)
+            else:
+                # Empty root hollow after collection
+                pygame.draw.ellipse(surface, (14, 12, 18), (px - 4, py - 3, 8, 7))
+
+        elif self.container_type == "cracked_boulder":
+            # Silver Key: wedged in cracked limestone boulder fissure
+            pts = [(px - 15, py + 10), (px - 18, py - 2), (px - 8, py - 14), (px + 8, py - 12), (px + 16, py - 2), (px + 14, py + 10)]
+            pygame.draw.polygon(surface, (48, 42, 56), pts)
+            pygame.draw.polygon(surface, (32, 28, 38), pts, 1)
+            # Deep fracture fissure
+            pygame.draw.lines(surface, (12, 10, 18), False, [(px - 8, py - 14), (px - 2, py - 4), (px + 4, py + 2), (px + 2, py + 10)], 3)
+
+            if not self.collected:
+                # Silver key nestled in crack: polished edge and spiral plate visible
+                pygame.draw.circle(surface, self.dark_color, (px - 1, py - 3), 5)
+                pygame.draw.circle(surface, self.color, (px - 1, py - 3), 5, width=1)
+                pygame.draw.arc(surface, self.highlight, (px - 4, py - 6, 6, 6), 0, 4.0, 1)
+                pygame.draw.line(surface, self.color, (px, py + 2), (px + 3, py + 9), 2)
+                pygame.draw.rect(surface, self.color, (px + 3, py + 6, 3, 2))
+                # Subtle silver specular glint
+                if glint_phase > 0.85:
+                    pygame.draw.circle(surface, (245, 250, 255), (px - 3, py - 5), 1)
+
+        elif self.container_type == "masonry_debris":
+            # Gold Key: tucked under fallen temple lintel and masonry rubble
+            pygame.draw.rect(surface, (54, 48, 62), (px - 16, py - 8, 32, 10), border_radius=2)
+            pygame.draw.rect(surface, (38, 32, 45), (px - 16, py - 8, 32, 10), width=1, border_radius=2)
+            pygame.draw.rect(surface, (44, 38, 52), (px - 12, py + 2, 22, 8), border_radius=1)
+            pygame.draw.rect(surface, (28, 24, 35), (px - 12, py + 2, 22, 8), width=1, border_radius=1)
+
+            if not self.collected:
+                # Gold sun plate corner exposed under lintel stone
+                gold_corner = [(px - 2, py - 2), (px + 7, py - 6), (px + 10, py + 1), (px + 2, py + 3)]
+                pygame.draw.polygon(surface, self.dark_color, gold_corner)
+                pygame.draw.polygon(surface, self.color, gold_corner, width=1)
+                pygame.draw.circle(surface, self.highlight, (px + 4, py - 1), 3)
+                pygame.draw.circle(surface, self.dark_color, (px + 4, py - 1), 1)
+                # Subtle gold glint tick
+                if glint_phase > 0.85:
+                    pygame.draw.circle(surface, (255, 240, 140), (px + 8, py - 5), 1)
+
 class Level1Room:
     """Temple foundation assembled from the existing local Level 1 prototype."""
 
@@ -109,6 +221,7 @@ class Level1Room:
         self.all_obstacles=self.walls+self.pillars
         self.floor_surf=self._render_static_floor()
         self.lantern_pickup=LanternPickup(680,1090)
+        self.keys=self._build_keys()
 
     def _build_walls(self) -> list[pygame.Rect]:
         """Intentionally designed maze for the 1600x1200 temple.
@@ -240,10 +353,32 @@ class Level1Room:
 
         return surf
 
+    def _build_keys(self) -> list[Key]:
+        """Keys embedded within authentic environmental features across distinct exploration branches."""
+        return [
+            Key("key_bronze", 140, 500, correct=False, label="Bronze Key",
+                color=(165, 105, 55), emblem="orb",
+                dark_color=(100, 60, 30), highlight=(220, 160, 80),
+                container_type="roots", container_name="Gnarled Roots"),
+            Key("key_silver", 1460, 500, correct=False, label="Silver Key",
+                color=(185, 190, 200), emblem="spiral",
+                dark_color=(120, 125, 135), highlight=(230, 235, 245),
+                container_type="cracked_boulder", container_name="Cracked Pillar Base"),
+            Key("key_gold", 270, 260, correct=True, label="Gold Key",
+                color=(225, 185, 45), emblem="sun",
+                dark_color=(160, 120, 25), highlight=(255, 235, 100),
+                container_type="masonry_debris", container_name="Fallen Masonry"),
+        ]
+
     def update(self,player,dt,inventory=None):
         dx,dy=player.get_input_vector()
         move_with_collision(player,dx,dy,self.all_obstacles,dt)
         player.update_animation(bool(dx or dy),dt)
+        for key in self.keys:
+            key.update(dt)
+            if not key.collected and player.rect.colliderect(key.rect) and has_line_of_sight(player.center,key.rect.center,self.walls):
+                key.collected=True
+                inventory.add_key(key.id)
 
     def interact(self,player,lantern,inventory=None,clue_modal=None):
         if not self.lantern_pickup.collected and player.rect.colliderect(self.lantern_pickup.rect.inflate(30,30)) and has_line_of_sight(player.center,self.lantern_pickup.rect.center,self.walls):
@@ -260,6 +395,9 @@ class Level1Room:
             pygame.draw.rect(surface,WALL_STONE,rect)
             pygame.draw.rect(surface,WALL_HIGHLIGHT,rect,2)
         if not self.lantern_pickup.collected:self.lantern_pickup.draw(surface,offset)
+        for key in self.keys:
+            lit=lantern.possessed and lantern.active and is_point_lit(key.rect.center,player.center,lantern.radius)
+            key.draw(surface,lit,offset)
         player.draw(surface,camera_offset=offset)
         center=(int(player.center[0]-offset[0]),int(player.center[1]-offset[1]))
         radius=lantern.radius if lantern.possessed and lantern.active else 45
