@@ -18,3 +18,15 @@ def test_player_geometry_and_directional_animation():
     assert p.center==(113,215)
     p.update_animation(True,.1)
     assert p.width==26 and p.height==30
+
+
+def test_world_collision_stops_at_wall():
+    import pygame
+    from engine.player import Player
+    from engine.collision import move_with_collision
+    from content.level1 import Level1Room
+    pygame.init()
+    room=Level1Room();assert len(room.walls)>4
+    p=Player(80,80)
+    move_with_collision(p,1,0,[pygame.Rect(120,0,20,300)],.1)
+    assert p.rect.right==120
