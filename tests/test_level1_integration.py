@@ -97,6 +97,9 @@ def test_level3_files_follow_the_two_file_layout():
     assert sorted(file.name for file in (root/'tests').glob('test_level3*.py')) == [
         'test_level3.py', 'test_level3_world.py',
     ]
+    assert (root/'src'/'engine'/'reflection.py').exists()
+    assert (root/'src'/'entities'/'mirror.py').exists()
+    assert (root/'src'/'entities'/'puzzle_crystal.py').exists()
     assert not (root/'saves').exists()
 
 def test_inventory_has_keys_mirrors_and_clues(game):
