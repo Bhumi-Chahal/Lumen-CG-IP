@@ -537,7 +537,6 @@ class GameManager:
         self.game_surface.blit(opt1, (self.render_w // 2 - opt1.get_width() // 2, cy + card_h - 68))
         self.game_surface.blit(opt2, (self.render_w // 2 - opt2.get_width() // 2, cy + card_h - 38))
 
-    # --- Level 2 Drawing -----------------------------------------------------
 
 
 
