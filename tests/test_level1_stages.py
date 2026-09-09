@@ -37,3 +37,14 @@ def test_camera_clamps_both_world_edges():
     c=Camera(800,600,1600,1200)
     c.update((0,0),1);assert c.offset==(0,0)
     c.update((1600,1200),1);assert c.offset==(800,600)
+
+
+def test_lantern_pickup_and_toggle():
+    import pygame
+    from content.level1 import Level1Room
+    from engine.player import Player
+    from engine.lantern import Lantern
+    pygame.init();r=Level1Room();p=Player(667,1075);l=Lantern()
+    assert r.interact(p,l)
+    assert l.possessed and l.active
+    l.toggle();assert not l.active and l.radius==0

@@ -11,6 +11,7 @@ import random
 import pygame
 
 from engine.collision import move_with_collision
+from engine.lighting import build_darkness_mask, is_point_lit, LightingSystem
 from systems.audio import audio
 
 SCREEN_WIDTH = 800
@@ -42,6 +43,63 @@ def has_line_of_sight(pos1: tuple[float, float], pos2: tuple[float, float], wall
             return False
     return True
 
+class LanternPickup:
+    """The glowing lantern resting in the dark temple ruins at the start of Level 1."""
+
+    def __init__(self, x: float = 280, y: float = 390):
+        self.x = x
+        self.y = y
+        self.radius = 18
+        self.bob_phase = 0.0
+        self.collected = False
+
+    @property
+    def rect(self) -> pygame.Rect:
+        return pygame.Rect(int(self.x - self.radius), int(self.y - self.radius),
+                           self.radius * 2, self.radius * 2)
+
+    def update(self, dt: float):
+        self.bob_phase = (self.bob_phase + dt * 4.0) % (2 * math.pi)
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0), player_near: bool = False):
+        if self.collected:
+            return
+
+        px = int(self.x - camera_offset[0])
+        py = int(self.y - camera_offset[1])
+        flicker = math.sin(self.bob_phase)
+
+        # Distant warm glowing halo visible piercing through the darkness
+        halo_r = int(24 + 5 * flicker)
+        glow_surf = pygame.Surface((halo_r * 2, halo_r * 2), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surf, (255, 175, 55, 45), (halo_r, halo_r), halo_r)
+        pygame.draw.circle(glow_surf, (255, 215, 100, 85), (halo_r, halo_r), halo_r // 2)
+        pygame.draw.circle(glow_surf, (255, 245, 180, 160), (halo_r, halo_r), max(2, halo_r // 4))
+        surface.blit(glow_surf, (px - halo_r, py - halo_r))
+
+        # Lantern frame, hood, and base
+        pygame.draw.rect(surface, (50, 40, 28), (px - 5, py - 4, 10, 12), border_radius=2)
+        pygame.draw.rect(surface, (160, 125, 60), (px - 5, py - 4, 10, 12), width=1, border_radius=2)
+        # Glowing lantern glass
+        pygame.draw.rect(surface, (255, 235, 150), (px - 3, py - 2, 6, 8))
+        # Brilliant flame core
+        pygame.draw.circle(surface, (255, 255, 230), (px, py + 2), 2)
+        # Ring handle
+        pygame.draw.circle(surface, (150, 120, 60), (px, py - 6), 3, width=1)
+
+        # Interaction prompt if player is nearby
+        if player_near:
+            prompt_y = py - self.radius - 14 + int(2 * math.sin(self.bob_phase))
+            font = pygame.font.SysFont("consolas", 12, bold=True)
+            prompt_txt = font.render("[E] Pick Up Lantern", True, (255, 235, 180))
+            box = pygame.Rect(px - prompt_txt.get_width() // 2 - 4, prompt_y - 2,
+                              prompt_txt.get_width() + 8, prompt_txt.get_height() + 4)
+            box_surf = pygame.Surface((box.width, box.height), pygame.SRCALPHA)
+            box_surf.fill((15, 12, 25, 220))
+            pygame.draw.rect(box_surf, (190, 160, 90), (0, 0, box.width, box.height), width=1, border_radius=3)
+            surface.blit(box_surf, (box.x, box.y))
+            surface.blit(prompt_txt, (box.x + 4, box.y + 2))
+
 class Level1Room:
     """Temple foundation assembled from the existing local Level 1 prototype."""
 
@@ -50,6 +108,7 @@ class Level1Room:
         self.pillars=self._build_pillars()
         self.all_obstacles=self.walls+self.pillars
         self.floor_surf=self._render_static_floor()
+        self.lantern_pickup=LanternPickup(680,1090)
 
     def _build_walls(self) -> list[pygame.Rect]:
         """Intentionally designed maze for the 1600x1200 temple.
@@ -186,10 +245,22 @@ class Level1Room:
         move_with_collision(player,dx,dy,self.all_obstacles,dt)
         player.update_animation(bool(dx or dy),dt)
 
+    def interact(self,player,lantern,inventory=None,clue_modal=None):
+        if not self.lantern_pickup.collected and player.rect.colliderect(self.lantern_pickup.rect.inflate(30,30)) and has_line_of_sight(player.center,self.lantern_pickup.rect.center,self.walls):
+            self.lantern_pickup.collected=True
+            lantern.possessed=lantern.active=True
+            lantern.radius=lantern.base_radius
+            return True
+        return False
+
     def draw(self,surface,player,offset=(0,0),lantern=None):
         surface.blit(self.floor_surf,(-offset[0],-offset[1]))
         for wall in self.walls+self.pillars:
             rect=wall.move(-offset[0],-offset[1])
             pygame.draw.rect(surface,WALL_STONE,rect)
             pygame.draw.rect(surface,WALL_HIGHLIGHT,rect,2)
+        if not self.lantern_pickup.collected:self.lantern_pickup.draw(surface,offset)
         player.draw(surface,camera_offset=offset)
+        center=(int(player.center[0]-offset[0]),int(player.center[1]-offset[1]))
+        radius=lantern.radius if lantern.possessed and lantern.active else 45
+        surface.blit(build_darkness_mask(surface.get_size(),center,radius),(0,0))

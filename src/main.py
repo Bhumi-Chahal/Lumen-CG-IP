@@ -3,6 +3,7 @@ import pygame
 from engine.player import Player
 from content.level1 import Level1Room
 from engine.camera import Camera
+from engine.lantern import Lantern
 
 def main(max_frames=None):
     pygame.init()
@@ -17,6 +18,7 @@ def main(max_frames=None):
     room=Level1Room()
     camera=Camera(800,600,1600,1200)
     camera.update(player.center,1)
+    lantern=Lantern()
     while running:
         dt=min(clock.tick(60)/1000,.05)
         for event in pygame.event.get():
@@ -26,10 +28,12 @@ def main(max_frames=None):
                 elif event.key==pygame.K_F11:
                     fullscreen=not fullscreen
                     window=pygame.display.set_mode((0,0) if fullscreen else (800,600),pygame.FULLSCREEN if fullscreen else 0)
+                elif event.key==pygame.K_l and lantern.possessed:lantern.toggle()
+                elif event.key==pygame.K_e:room.interact(player,lantern)
         screen.fill((17,14,24))
         room.update(player,dt)
         camera.update(player.center,dt)
-        room.draw(screen,player,camera.offset)
+        room.draw(screen,player,camera.offset,lantern)
         window.blit(pygame.transform.scale(screen,window.get_size()),(0,0))
         pygame.display.flip()
         frames+=1
