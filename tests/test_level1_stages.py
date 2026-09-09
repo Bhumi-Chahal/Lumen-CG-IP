@@ -84,16 +84,16 @@ def test_only_gold_key_opens_sanctum():
     r.select_and_try_key(inv,3);assert r.is_complete
 
 
-def test_completion_replays_only_level1():
+def test_completion_enters_level2_with_shared_inventory_contract():
     import pygame
-    from main import GameManager,STATE_LEVEL1_COMPLETE,STATE_PLAYING
+    from main import GameManager,STATE_LEVEL1_COMPLETE,STATE_LEVEL2
     game=GameManager();game.state=STATE_LEVEL1_COMPLETE
     game._handle_keydown(pygame.K_SPACE)
-    assert game.state==STATE_PLAYING
-    assert not hasattr(game,'level2_room') and not hasattr(game,'level3_room')
+    assert game.state==STATE_LEVEL2
+    assert game.level2_room is not None
     game.story_modal.close();game._draw()
     game.inventory_modal.open();game._draw()
-    assert game.inventory_modal.CATEGORIES==['KEYS','CLUES']
+    assert game.inventory_modal.CATEGORIES==['KEYS','MIRRORS','CLUES']
 
 
 def test_original_temple_decor_and_audio_fallback():

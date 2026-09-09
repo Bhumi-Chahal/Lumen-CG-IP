@@ -1,9 +1,15 @@
-"""Level 1 key inventory; later-level collectibles are intentionally absent."""
+"""Tracks keys, journal clues, and Level 2 mirrors across the shared run."""
+
+
 class Inventory:
+    """Manages player progression inventory."""
+
     def __init__(self):
-        self.clues=[]
-        self.keys=[]
-        self.selected_key_id=None
+        self.keys: list[str] = []
+        self.mirrors: list[str] = []
+        self.clues: list[dict] = []
+        self.selected_mirror_id: str | None = None
+        self.selected_key_id: str | None = None
 
     def add_key(self, key_id: str):
         if key_id not in self.keys:
@@ -30,6 +36,46 @@ class Inventory:
     @property
     def key_count(self) -> int:
         return len(self.keys)
+
+    def add_mirror(self, mirror_item):
+        """Adds a collectible player mirror to inventory.
+
+        Trial mirrors are environmental teaching objects and cannot be added.
+        """
+        if hasattr(mirror_item, "is_trial") and mirror_item.is_trial:
+            return False
+        if hasattr(mirror_item, "is_collectible") and not mirror_item.is_collectible:
+            return False
+
+        mirror_id = str(getattr(mirror_item, "id", mirror_item))
+        if "trial" in mirror_id.lower():
+            return False
+
+        if mirror_id not in self.mirrors:
+            self.mirrors.append(mirror_id)
+        return True
+
+    def has_mirror(self, mirror_id: str) -> bool:
+        return mirror_id in self.mirrors
+
+    def select_mirror(self, mirror_id: str) -> bool:
+        """Selects a collected mirror for installation."""
+        if self.has_mirror(mirror_id):
+            self.selected_mirror_id = mirror_id
+            return True
+        return False
+
+    def get_selected_mirror(self) -> str | None:
+        """Returns the currently selected mirror ID, if any."""
+        return self.selected_mirror_id
+
+    def clear_selected_mirror(self):
+        """Clears the currently selected mirror."""
+        self.selected_mirror_id = None
+
+    @property
+    def mirror_count(self) -> int:
+        return len(self.mirrors)
 
     def add_clue(self, clue_id: str, title: str = "", text: str = "", clue_type: str = "clue") -> bool:
         """Adds a discovered environmental clue / journal entry to inventory."""
@@ -63,5 +109,5 @@ class Inventory:
 
     def clear(self):
         self.keys.clear()
+        self.mirrors.clear()
         self.clues.clear()
-        self.selected_key_id=None

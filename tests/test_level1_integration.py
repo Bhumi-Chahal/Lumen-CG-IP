@@ -1,11 +1,10 @@
 """End-to-end Level 1 controls, import boundaries and fresh-session checks."""
-import ast
 import heapq
 from pathlib import Path
 from unittest.mock import patch
 import pygame
 import pytest
-from main import GameManager,STATE_PLAYING,STATE_LEVEL1_COMPLETE,STATE_MENU
+from main import GameManager,STATE_PLAYING,STATE_LEVEL1_COMPLETE,STATE_LEVEL2,STATE_MENU
 from content.level1 import has_line_of_sight
 
 @pytest.fixture
@@ -47,7 +46,7 @@ def walk_to(game,target):
             room.update(p,game.inventory,game.lantern,1/p.speed,game.camera)
         assert abs(p.x-tx)<.01 and abs(p.y-ty)<.01
 
-def test_walk_collect_read_unlock_complete_and_replay(game):
+def test_walk_collect_read_unlock_complete_and_enter_level2(game):
     walk_to(game,game.room.lantern_pickup.rect)
     game._handle_keydown(pygame.K_e);assert game.lantern.possessed
     for key in game.room.keys:
@@ -68,8 +67,9 @@ def test_walk_collect_read_unlock_complete_and_replay(game):
     assert game.state==STATE_LEVEL1_COMPLETE
     game._draw()
     game._handle_keydown(pygame.K_SPACE)
-    assert game.state==STATE_PLAYING and game.inventory.key_count==0
-    assert not game.lantern.possessed
+    assert game.state==STATE_LEVEL2 and game.inventory.key_count==3
+    assert game.inventory.has_key('key_gold')
+    assert game.lantern.possessed
 
 @pytest.mark.parametrize('panel',['story_modal','clue_modal','inventory_modal'])
 def test_modal_blocks_world_movement(game,panel):
@@ -89,22 +89,20 @@ def test_two_wrong_keys_return_to_menu(game):
     game._update(2.1)
     assert game.state==STATE_MENU and game.inventory.key_count==0
 
-def test_later_level_implementations_are_absent():
+def test_level2_is_the_only_later_level_implementation():
     root=Path(__file__).resolve().parents[1]
-    forbidden=('level2','level3','battery','shadow','mirror','crystal')
+    forbidden=('level3','level4')
     for file in (root/'src').rglob('*.py'):
         assert not any(word in file.stem.lower() for word in forbidden)
-        for node in ast.walk(ast.parse(file.read_text(encoding='utf-8'))):
-            if isinstance(node,ast.ImportFrom):assert not any(word in (node.module or '') for word in forbidden)
     assert not (root/'saves').exists()
 
-def test_inventory_has_only_keys_and_clues(game):
+def test_inventory_has_keys_mirrors_and_clues(game):
     for key in ('key_bronze','key_silver','key_gold'):game.inventory.add_key(key)
     game.inventory.add_clue('example','Example','A discovered clue.')
     modal=game.inventory_modal;modal.open()
-    for i,category in enumerate(('KEYS','CLUES')):
+    for i,category in enumerate(('KEYS','MIRRORS','CLUES')):
         modal.active_tab_index=i
         items=modal._get_category_items(game.inventory)
-        assert len(items)==(3 if category=='KEYS' else 1)
+        assert len(items)==(3 if category in ('KEYS','MIRRORS') else 1)
         game._draw()
-    assert modal.CATEGORIES==['KEYS','CLUES']
+    assert modal.CATEGORIES==['KEYS','MIRRORS','CLUES']

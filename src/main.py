@@ -27,6 +27,7 @@ from systems.ui import ClueModal, HUD, StoryModal, DoorModal
 from systems.inventory_ui import InventoryModal
 from systems.audio import audio
 from content.level1 import Level1Room, SCREEN_WIDTH, SCREEN_HEIGHT, ROOM_WIDTH, ROOM_HEIGHT
+from content.level2 import Level2Room, L2_WORLD_WIDTH, L2_WORLD_HEIGHT, L2_SPAWN_X, L2_SPAWN_Y
 
 FPS = 60
 
@@ -34,6 +35,7 @@ FPS = 60
 STATE_MENU = "menu"
 STATE_PLAYING = "playing"
 STATE_LEVEL1_COMPLETE = "level1_complete"
+STATE_LEVEL2 = "level2"
 
 
 class GameManager:
@@ -85,6 +87,7 @@ class GameManager:
         self.lantern: Lantern = Lantern(radius=130)
         self.inventory: Inventory = Inventory()
         self.room: Level1Room = Level1Room()
+        self.level2_room: Level2Room | None = None
 
         self.start_time = 0.0
         self.elapsed_time = 0.0
@@ -168,6 +171,18 @@ class GameManager:
             footer_prompt="Press [SPACE] or [ESC] to begin"
         )
 
+    def init_level2(self):
+        """Enter Level 2 while retaining the shared Level 1 inventory."""
+        self.player = Player(x=L2_SPAWN_X, y=L2_SPAWN_Y)
+        self.lantern.possessed = True
+        self.lantern.active = True
+        self.lantern.radius = self.lantern.base_radius
+        self.lantern.color = "white"
+        self.level2_room = Level2Room(self.inventory)
+        self.camera = Camera(self.render_w, self.render_h, L2_WORLD_WIDTH, L2_WORLD_HEIGHT)
+        self.state = STATE_LEVEL2
+        pygame.display.set_caption("Lumen: The Deepening Dark — Level 2")
+
 
 
 
@@ -186,7 +201,7 @@ class GameManager:
                     pos=self._screen_to_game_coords(event.pos) if event.type==pygame.MOUSEBUTTONDOWN else None
                     self.inventory_modal.handle_input(event,game_pos=pos,inventory=self.inventory)
                     continue
-                if event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and self.state==STATE_PLAYING:
+                if event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and self.state in (STATE_PLAYING, STATE_LEVEL2):
                     if not (self.story_modal.is_open or self.clue_modal.is_open or self.door_modal.is_open) and self.inventory_btn_rect.collidepoint(self._screen_to_game_coords(event.pos)):
                         self.inventory_modal.toggle()
                         continue
@@ -312,13 +327,40 @@ class GameManager:
 
         elif self.state == STATE_LEVEL1_COMPLETE:
             if key == pygame.K_SPACE:
-                self.reset_level1()
-                self.state = STATE_PLAYING
+                self.init_level2()
             elif key in (pygame.K_m, pygame.K_RETURN):
                 self.state = STATE_MENU
             elif key == pygame.K_ESCAPE:
                 pygame.quit()
                 sys.exit()
+
+        elif self.state == STATE_LEVEL2:
+            if not self.level2_room or self.level2_room.is_dead:
+                return
+            if self.level2_room.exit_door["showing"] or self.level2_room.inscription["showing"] or any(w["showing"] for w in self.level2_room.ancient_writings):
+                if key in (pygame.K_e, pygame.K_SPACE, pygame.K_ESCAPE, pygame.K_RETURN):
+                    self.level2_room.dismiss_inscription()
+                return
+            if key == pygame.K_ESCAPE:
+                self.state = STATE_MENU
+            elif key == pygame.K_i:
+                self.inventory_modal.toggle()
+            elif key == pygame.K_SPACE:
+                self.player.jump()
+            elif key == pygame.K_l and self.lantern.possessed:
+                self.lantern.toggle()
+            elif key == pygame.K_e:
+                self.level2_room.handle_interact(self.player, self.lantern, self.inventory)
+            elif key == pygame.K_1:
+                self.lantern.set_color("white")
+            elif key == pygame.K_r:
+                self.lantern.set_color("red")
+            elif key == pygame.K_g:
+                self.lantern.set_color("green")
+            elif key == pygame.K_b:
+                self.lantern.set_color("blue")
+            elif key in (pygame.K_c, pygame.K_h):
+                self.show_controls = not self.show_controls
 
     def _update(self, dt: float):
         self.menu_pulse = (self.menu_pulse + dt * 2.5) % (2 * math.pi)
@@ -373,11 +415,18 @@ class GameManager:
                 if self.room.is_complete and self.room.door_open_progress >= 1.0:
                     self.state = STATE_LEVEL1_COMPLETE
 
+        elif self.state == STATE_LEVEL2 and self.level2_room:
+            self.level2_room.update(self.player, self.lantern, dt)
+            self.camera.update(self.player.center, dt)
+            if self.level2_room.is_dead and self.level2_room.death_timer <= 0:
+                self.init_level2()
+
     def _draw(self):
         if self.state == STATE_MENU:self._draw_menu()
         elif self.state == STATE_PLAYING:self._draw_playing()
         elif self.state == STATE_LEVEL1_COMPLETE:self._draw_complete()
-        if self.state == STATE_PLAYING:self._draw_side_inventory_button()
+        elif self.state == STATE_LEVEL2:self._draw_level2()
+        if self.state in (STATE_PLAYING, STATE_LEVEL2):self._draw_side_inventory_button()
         if self.story_modal.is_open:self.story_modal.draw(self.game_surface,self.font_modal_title,self.font_body)
         if self.inventory_modal.is_open:self.inventory_modal.draw(self.game_surface,self.inventory)
         if self.show_controls:self._draw_controls_overlay()
@@ -474,6 +523,10 @@ class GameManager:
         if self.door_modal.is_open:
             self.door_modal.draw(self.game_surface, self.font_modal_title, self.font_body,
                                  self.font_small, self.inventory)
+
+    def _draw_level2(self):
+        self.level2_room.draw(self.game_surface, self.player, self.lantern, camera_offset=self.camera.offset)
+        self.level2_room.draw_hud(self.game_surface, self.font_small, self.lantern, inventory=self.inventory)
 
     # --- Level Complete Drawing ----------------------------------------------
 
