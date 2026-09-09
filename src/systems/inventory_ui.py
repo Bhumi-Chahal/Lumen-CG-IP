@@ -4,10 +4,15 @@ import pygame
 from systems.audio import audio
 
 class InventoryModal:
-    """UI Overlay for managing collected keys and clue journal entries."""
-    CATEGORIES = ['KEYS', 'CLUES']
+    """UI overlay for keys, Level 2 mirrors, and journal entries."""
+    CATEGORIES = ['KEYS', 'MIRRORS', 'CLUES']
     KEY_DEFS = [{'id': 'key_bronze', 'name': 'Bronze Key', 'category': 'KEY', 'type': 'Key', 'description': 'A heavy bronze key found near the eastern ruins. Tarnished with age, it bears an astrological triple-crescent motif and engraved celestial runes.', 'color': (205, 127, 50)}, {'id': 'key_silver', 'name': 'Silver Key', 'category': 'KEY', 'type': 'Key', 'description': 'A polished silver key salvaged from the dark corridors. Masterfully forged with heart-shaped filigree scrollwork and gleaming moon highlights.', 'color': (192, 192, 210)}, {'id': 'key_gold', 'name': 'Gold Key', 'category': 'KEY', 'type': 'Key', 'description': 'A pristine gold key retrieved from the northern alcove. Features an ornate imperial crown crest and fluted shaft, untouched by rust.', 'color': (240, 195, 55)}]
     KNOWN_CLUE_DEFS = {'clue_statue': {'title': 'Ancient Guardian Statue', 'type': 'STATUE', 'description': "An ancient stone sentinel overlooks the ruined corridor. An eroded inscription at its base warns: 'Beyond this threshold lies the Hall of Fate, where three great arches stand in silent trial. Only pure light will reveal the path that does not lead to ruin.'"}, 'clue_stump': {'title': 'Gnarled Tree Stump', 'type': 'TREE STUMP', 'description': "Ancient runes are scored into the petrified tree rings: 'In the deep chambers, darkness is not merely an absence of light, but a prowling hunger. Guard your flame diligently, for when the light falters, the shadow awakens to claim what remains.'"}, 'clue_stone': {'title': 'Weathered Standing Stone', 'type': 'STANDING STONE', 'description': "Carved glyphs wind down the ancient megalith: 'Three sacred keys exist in each domain of the temple. The first opens the passage; the second tests your resolve; the third preserves your soul. Trust your instincts when facing the seal.'"}}
+    MIRROR_DEFS = [
+        {'id': 'mirror_red', 'name': 'Crimson Refractor Mirror', 'color': (235, 90, 80)},
+        {'id': 'mirror_blue', 'name': 'Azure Refractor Mirror', 'color': (90, 150, 255)},
+        {'id': 'mirror_green', 'name': 'Verdant Refractor Mirror', 'color': (90, 230, 130)},
+    ]
 
     def __init__(self, screen_width: int=960, screen_height: int=540):
         self.screen_width = screen_width
@@ -163,6 +168,10 @@ class InventoryModal:
                 ctype = c.get('type') or known.get('type') or 'JOURNAL'
                 text = c.get('text') or known.get('description') or 'Discovered clue entry.'
                 items.append({'id': c_id, 'name': title, 'category': 'JOURNAL', 'type': ctype.upper(), 'status': 'DISCOVERED', 'collected': True, 'description': text, 'color': (215, 175, 55)})
+        elif self.CATEGORIES[self.active_tab_index] == 'MIRRORS':
+            for mirror in self.MIRROR_DEFS:
+                collected = inventory.has_mirror(mirror['id']) if inventory is not None else False
+                items.append({'id': mirror['id'], 'name': mirror['name'], 'category': 'MIRROR', 'type': 'Refractor Mirror', 'status': 'COLLECTED' if collected else 'NOT COLLECTED', 'collected': collected, 'description': 'A colored ancient mirror recovered from the Deepening Dark.', 'color': mirror['color']})
         return items
 
     def draw(self, surface: pygame.Surface, inventory, current_level_id: str='level1'):
@@ -236,7 +245,7 @@ class InventoryModal:
             cnt_str = f'Collected: {cnt}/{len(self.KEY_DEFS)}'
         else:
             cnt = sum((1 for it in items if it['collected']))
-            cnt_str = f'Collected: {cnt}/{len(self.KEY_DEFS)}'
+            cnt_str = f'Collected: {cnt}/{len(self.MIRROR_DEFS)}'
         hdr_txt = font_bold.render(f'{cat_name} GRID', True, (210, 185, 110))
         cnt_txt = font_sub.render(cnt_str, True, (150, 135, 100))
         surface.blit(hdr_txt, (self.grid_panel_rect.x + 14, self.grid_panel_rect.y + 12))
