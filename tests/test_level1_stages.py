@@ -45,7 +45,7 @@ def test_lantern_pickup_and_toggle():
     from engine.player import Player
     from engine.lantern import Lantern
     pygame.init();r=Level1Room();p=Player(667,1075);l=Lantern()
-    assert r.interact(p,l)
+    assert r.handle_interact(p,None,lantern=l)
     assert l.possessed and l.active
     l.toggle();assert not l.active and l.radius==0
 
@@ -57,7 +57,7 @@ def test_key_pickup_records_each_key_once():
     from engine.inventory import Inventory
     pygame.init();r=Level1Room();inv=Inventory();key=r.keys[0]
     p=Player(key.rect.centerx-13,key.rect.centery-15)
-    r.update(p,.01,inv);r.update(p,.01,inv)
+    r.update(p,inv,__import__("engine.lantern",fromlist=["Lantern"]).Lantern(),.01);r.update(p,inv,__import__("engine.lantern",fromlist=["Lantern"]).Lantern(),.01)
     assert key.collected and inv.keys==[key.id]
 
 
@@ -69,5 +69,16 @@ def test_clue_inspection_populates_journal():
     from engine.lantern import Lantern
     pygame.init();r=Level1Room();inv=Inventory();clue=r.clue_objects[0]
     p=Player(clue.rect.centerx-13,clue.rect.bottom+1)
-    assert r.interact(p,Lantern(),inv)
+    assert r.handle_interact(p,inv,lantern=Lantern())
     assert inv.has_clue(clue.id)
+
+
+def test_only_gold_key_opens_sanctum():
+    import pygame
+    from content.level1 import Level1Room
+    from engine.inventory import Inventory
+    pygame.init();r=Level1Room();inv=Inventory()
+    for name in ('key_bronze','key_silver','key_gold'):inv.add_key(name)
+    r.select_and_try_key(inv,1);assert not r.is_complete
+    r.select_and_try_key(inv,2);assert not r.is_complete
+    r.select_and_try_key(inv,3);assert r.is_complete
