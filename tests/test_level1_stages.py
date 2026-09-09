@@ -82,3 +82,15 @@ def test_only_gold_key_opens_sanctum():
     r.select_and_try_key(inv,1);assert not r.is_complete
     r.select_and_try_key(inv,2);assert not r.is_complete
     r.select_and_try_key(inv,3);assert r.is_complete
+
+
+def test_completion_replays_only_level1():
+    import pygame
+    from main import GameManager,STATE_LEVEL1_COMPLETE,STATE_PLAYING
+    game=GameManager();game.state=STATE_LEVEL1_COMPLETE
+    game._handle_keydown(pygame.K_SPACE)
+    assert game.state==STATE_PLAYING
+    assert not hasattr(game,'level2_room') and not hasattr(game,'level3_room')
+    game.story_modal.close();game._draw()
+    game.inventory_modal.open();game._draw()
+    assert game.inventory_modal.CATEGORIES==['KEYS','CLUES']

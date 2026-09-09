@@ -60,3 +60,8 @@ class Inventory:
     def get_clue(self, clue_id: str) -> dict | None:
         """Returns a specific clue entry by ID, or None if not found."""
         return next((c for c in self.clues if c["id"] == clue_id), None)
+
+    def clear(self):
+        self.keys.clear()
+        self.clues.clear()
+        self.selected_key_id=None
